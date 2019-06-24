@@ -1,21 +1,19 @@
 # 2019_ASM_Final_Project
-
-## Milos Play Volleyball
-### 遊戲主畫面
+## 遊戲主畫面
 ![](https://github.com/kaibaooo/2019_ASM_Final_Project/blob/master/res/mainScreen.png?raw=true)
 
-### Terminal設定
+## Terminal設定
 ![](https://github.com/kaibaooo/2019_ASM_Final_Project/blob/master/res/settings1.png?raw=true)
 ![](https://github.com/kaibaooo/2019_ASM_Final_Project/blob/master/res/settings2.png?raw=true)
 
-### Assembly
+## Assembly
 * MASM
 
-### Libraries
+## Libraries
 * Irvine32
 * Winmm
 
-### Development in group
+## Development in group
 * kaibaooo
 * lulalabana
 * weidi
