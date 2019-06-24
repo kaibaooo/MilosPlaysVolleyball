@@ -1,8 +1,5 @@
-TITLE MASM PlaySound						(PlaySoundExample.asm)
-
-; Description: MASM Assembly code that uses the Windows PlaySound function to play .wav files
-; Revision date: Created Dec 3, 2013 by Michael Lindahl
 INCLUDE Irvine32.inc
+INCLUDE Macros.inc
 INCLUDELIB user32.lib 
 includelib Winmm.lib
 PlaySound PROTO,
@@ -10,9 +7,6 @@ PlaySound PROTO,
         hmod:DWORD, 
         fdwSound:DWORD
 
-
-
-MAX_DIGITS = 80
 VK_LEFT		EQU		000000025h
 VK_UP		EQU		000000026h
 VK_RIGHT	EQU		000000027h
@@ -21,22 +15,53 @@ VK_W		EQU		000000057h
 VK_A		EQU		000000041h
 VK_S		EQU		000000053h
 VK_D		EQU		000000044h
-VK_ENTER    EQU     00000006Ch
-
+VK_ENTER	EQU		00000000Dh
+VK_SPACEBAR	EQU		000000020h
+maxCol      EQU     250
+maxRow      EQU     55
+Player1_min_X EQU 0
+Player1_max_X EQU 55
+Player2_min_X EQU 143
+Player2_max_X EQU 210
 GetKeyState PROTO, nVirtKey:DWORD
-
+ball_min_X EQU 5
+ball_max_X EQU 245
+ball_min_Y EQU 5
+ball_max_Y EQU 85
+MAX_SCORE EQU 10
 
 .data
-;============
-;Sound init
-;============
-deviceConnect BYTE "DeviceConnect",0
-SND_ALIAS    DWORD 00010000h
-SND_RESOURCE DWORD 00040005h
-SND_FILENAME DWORD 00020000h
-SND_ASYNC DWORD 0001h
-file BYTE "D:\\FFOutput\\pika.wav",0
+	player1_oldX byte 0
+	player1_oldY byte 0
+	player2_oldX byte 0
+	player2_oldY byte 0
+    player1_X BYTE 60
+    player1_Y BYTE 1
+	player1_V SBYTE 1
+	player2_X BYTE 160
+    player2_Y BYTE 1
+	player2_V SBYTE 1
+	acceleration BYTE 1 
+	ball_X BYTE 180
+	ball_Y BYTE 60
+	ball_xV Sbyte 3
+	ball_yV Sbyte -3
+	targetX byte 0
+	targetY byte 0
+	player1_move_flag byte 0
+	player2_move_flag byte 0
+	player1Score DWORD 0
+	player2Score DWORD 0
+	userChoice BYTE 1
+	cci CONSOLE_CURSOR_INFO <> 
+	chand dd ? 
 
+	SND_ALIAS    DWORD 00010000h
+	SND_RESOURCE DWORD 00040005h
+	SND_FILENAME DWORD 00020000h
+	SND_ASYNC DWORD 0001h
+	startMusic BYTE "Ricardo.wav",0
+	gameMusic BYTE "TOKYO.wav",0
 
 tttle byte "                           ''    @@'                                                                                                              ,@@" ,12
 byte "                          .@@`   @@'                                                                                                              ,@@" ,12
@@ -138,9 +163,6 @@ byte " " ,0
 
 
 
-
-
-
 frame_000 BYTE "                                                                                                                                                                ", 0
 BYTE "                                        +vrrwwwwwwxxxxxxxxwwxxxxxxyykykkqqkkyyykkqqqqHHHHHHHHHHHqqqqqqqqqqqqqqqqqqqqkyyuxxxxwwrrvvvvv}wwxykkqqqHHHqkkkyyyxwr}??                                   ", 0
 BYTE "                                        +}vvv}wwwxuuuuuuuyuuyyKKKKpqpqqqHHHHqpkKykkpHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHpkKyxzzzzzwwwwwwwxxuykqHHHHHHHHHHHHHqkkkxxwv?                                   ", 0
@@ -165,7 +187,7 @@ BYTE "                                                                  ~>vzupHH
 BYTE "                                                                  ~?vwypqHqqqqqqHHHHHHHHHHHHHHHHHHHHHHHHHHHqpkkxw}v?-                                           ", 0
 BYTE "                                                                  ~?vwukHHqqpqqqHHHHHHHHHHHHHHHHHHHHHHHHHHHqqkyz}v?~                                            ", 0
 BYTE "                                                                   +v}xKkppppqqqHHHHHHHHHHHHHHHHHHHHHHHHHHHHqyuz}?~                                             ", 0
-BYTE "                                                                   >?}uKkkppkpqqqHHHHHHHHHHHHHHHHHHHHHHHHHHHpyx}?~                                              ", 0
+BYTE "                                                                   >?}uKkkppkpqqqHHHHHH`HHHHHHHHHHHHHHHHHHHHHpyx}?~                                              ", 0
 BYTE "                                                                   >?wukkkkpppqqHHHHHHHHHHHHHHHHHHHHHHHHHHHqKuz?>~                                              ", 0
 BYTE "                                                                   +vwxkkkppqpqqHHHHHHHHHHHHHHHHHHHHHHHHHHqkyxxv+                                               ", 0
 BYTE "                                                                   +?wxykkkkkkkpkqHHHHHHHHHHHHHHHHHHHHH+^^?yvrxyu>                                              ", 0
@@ -11945,11 +11967,428 @@ BYTE "                                                                          
 BYTE "                                                                                                                                                                ", 0
 BYTE "                                                                                                                                                                ", 0,0
 
-targetX BYTE 50
-targetY BYTE 0
+
+
+;==============================MenuEND
+man BYTE "                                                                 .    ",0
+BYTE "                                       -/:///////////::----:://///:   ",0
+BYTE "                                     -///++++++++++oo+++++////////-   ",0
+BYTE "                                    :+sooo++++++++oooo+++++++//:.     ",0
+BYTE "                                   -osssoooooooooooooooo++++++//:.    ",0
+BYTE "                                   /sssooooooooooooooooooooo+++///-   ",0
+BYTE "                                  .ooooooossoooooooooooooooo+++////-  ",0
+BYTE "                                  ./+ooooooooooooossssoooooooo++///:  ",0
+BYTE "                                  .++ooooooooooooosyysoooooooo++///:. ",0
+BYTE "                                  ./++ooooosooooooossoooooooo+++///:. ",0
+BYTE "                                   :+++oooooooooossosssooooooo++///:. ",0
+BYTE "                                   :+++oooossoosssyyyhyyyyyysso+///:. ",0
+BYTE "                                   :+++ooosssoooooosyhdddhhyso+////-  ",0
+BYTE "                                   :++++oossooo+++++oyhhys+////////-  ",0
+BYTE "                                   ://++osssssoooososydhs+oo+/////:.  ",0
+BYTE "                                   /sso+ossyyyyysssyyhdhsossoo+++/-   ",0
+BYTE "                                   /ssooosyhhhhhhhhhhhdhsosssssoo/.   ",0
+BYTE "                                   :+++oosyyhhhhhhhhhhdhysosyyso+/.   ",0
+BYTE "                                  ./++++osssyyyhhhyyyhddysossso++:    ",0
+BYTE "                                 .:+++++oossssyyyhyyyyyso+oooo+/:.    ",0
+BYTE "                             ..-:///+++++ooossssssyyyyssssooo+/:-     ",0
+BYTE "                          .-:/++++//++o+++++oosssssssssooo++//:-      ",0
+BYTE "                      .-:/+++++++++++ooo++++++osssssssoo++//:-.       ",0
+BYTE "                   -:/++oooooo++++++ooooo++++++ossss+++++/::-         ",0
+BYTE "                 ./+oooooooooooo++++ssooo+++//+ooosoo+++/:-.          ",0
+BYTE "                -+oossssssssssooo+++ssoooo++////+++//::::-.           ",0
+BYTE "             .-:+oooosssssssssooo+++sssoooo+//////::------            ",0
+BYTE "          .-//++++++ooooooosoooo++++osooo+oo+///:::::::---.           ",0
+BYTE "        .:/+++++++oooooo++oooo++++++ooooo+++++/:::::::::---           ",0
+BYTE "       ./++++++ooooooooooooo++++++++oo+++++++/+/::::::::---           ",0
+BYTE "      -/++++++oooooooossssssooooo+++ooo++++++/////::::::::--          ",0
+BYTE "     ./++++++oooooooosssssssssssoo+++ooo+++++++//+/:::::::::.         ",0
+BYTE "     -++++++ooosssoosssyyyyyyyyssso++oooo+++++++/:::::::::::-.        ",0
+BYTE "    ./+oooo+ooosssssssyyhhhhyyyyssoo+oosoo+++++++//:://////::.        ",0
+BYTE "    :++ooooo+ooossssssyhdmmdhhyyysso+oosoo++++++++///://///::-        ",0
+BYTE "   ./+ooossooooossssssyhdmmmdhhyyyso+oosso++///++++//:://///::.       ",0
+BYTE "   ./+oossssoooossssssyyhmmmdhhyyyso+oosso+//////++//:::////::.       ",0
+BYTE "   ./++oosssoooosssssssyyhddhhyyyyso+oosoo//::////+///::://::-.       ",0
+BYTE "   .://++ooooooossssssssyyhhhyyyyysoooooo/:-:::///++//:::::::.        ",0
+BYTE "   -://///++++oosssssssssyyyyyyyyysoo+++/:---::///+///:::::-.         ",0
+
+
+man2 BYTE "      .                                                               ",0
+BYTE "   ://///::----::///////////:/-                                       ",0
+BYTE "   -////////+++++oo++++++++++///-                                     ",0
+BYTE "     .://+++++++oooo++++++++ooos+:                                    ",0
+BYTE "    .://++++++oooooooooooooooossso-                                   ",0
+BYTE "   -///+++ooooooooooooooooooooosss/                                   ",0
+BYTE "  -////+++oooooooooooooooossooooooo.                                  ",0
+BYTE "  :///++oooooooossssooooooooooooo+/.                                  ",0
+BYTE " .:///++oooooooosyysooooooooooooo++.                                  ",0
+BYTE " .:///+++oooooooossooooooosooooo++/.                                  ",0
+BYTE " .:///++ooooooosssossoooooooooo+++:                                   ",0
+BYTE " .:///+ossyyyyyyhyyysssoossoooo+++:                                   ",0
+BYTE "  -////+osyhhdddhysoooooosssooo+++:                                   ",0
+BYTE "  -////////+syhhyo+++++ooossoo++++:                                   ",0
+BYTE "  .://///+oo+shdysosoooossssso++//:                                   ",0
+BYTE "   -/+++oossoshdhyysssyyyyysso+oss/                                   ",0
+BYTE "   ./oosssssoshdhhhhhhhhhhhysoooss/                                   ",0
+BYTE "   ./+osyysosyhdhhhhhhhhhhyysoo+++:                                   ",0
+BYTE "    :++osssosyddhyyyhhhyyyssso++++/.                                  ",0
+BYTE "    .:/+oooo+osyyyyyhyyyssssoo+++++:.                                 ",0
+BYTE "     -:/+ooossssyyyyssssssooo+++++///:-..                             ",0
+BYTE "      -://++ooosssssssssoo+++++o++//++++/:-.                          ",0
+BYTE "       .-://++oossssssso++++++ooo+++++++++++/:-.                      ",0
+BYTE "         -::/+++++sssso++++++ooooo++++++oooooo++/:-                   ",0
+BYTE "          .-:/+++oosooo+//+++oooss++++oooooooooooo+/.                 ",0
+BYTE "           .-:::://+++////++ooooss+++ooossssssssssoo+-                ",0
+BYTE "            ------:://////+oooosss+++ooosssssssssoooo+:-.             ",0
+BYTE "           .---:::::::///+oo+oooso++++oooosooooooo++++++//-.          ",0
+BYTE "           ---:::::::::/+++++ooooo++++++oooo++oooooo+++++++/:.        ",0
+BYTE "           ---::::::::/+/+++++++oo++++++++ooooooooooooo++++++/.       ",0
+BYTE "          --:::::::://///++++++ooo+++ooooossssssoooooooo++++++/-      ",0
+BYTE "         .:::::::::/+//+++++++ooo+++oosssssssssssoooooooo++++++/.     ",0
+BYTE "        .-:::::::::::/+++++++oooo++osssyyyyyyyysssoosssooo++++++-     ",0
+BYTE "        .:://////:://+++++++oosoo+oossyyyyhhhhyysssssssooo+oooo+/.    ",0
+BYTE "        -:://///:///++++++++oosoo+ossyyyhhdmmdhyssssssooo+ooooo++:    ",0
+BYTE "       .:://///:://++++///++ossoo+osyyyhhdmmmdhyssssssooooossooo+/.   ",0
+BYTE "       .::////::://++//////+ossoo+osyyyhhdmmmhyyssssssoooossssoo+/.   ",0
+BYTE "       .-:://:::///+////:://oosoo+osyyyyhhddhyysssssssoooosssoo++/.   ",0
+BYTE "        .::::::://++///:::-:/oooooosyyyyyhhhyyssssssssooooooo++//:.   ",0
+BYTE "         .-:::::///+///::---:/+++oosyyyyyyyyysssssssssoo++++/////:-   ",0
+
+
+
+
+manClear BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+BYTE "                                                                      ",0
+
+
+ball byte"      -/osso/.      " ,0
+byte "   .sNMMMMMMMMmo`   " ,0
+byte "  :hMMMMMMMMMMMMy-  " ,0
+byte " -MNhdmMMMMMMmdhNN` " ,0
+byte " oMMMMNddshddNMMMM: " ,0
+byte " :MMMMMMMMsMMMMMMM. " ,0
+byte "  oMMMMMMMddMMMMN/  " ,0
+byte "   -yMMMMMhmMMNs.   " ,0
+byte "     `:osy/s+-      " ,0
+
+      
+ballClear byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+byte "                    " ,0
+
+
+net byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx" ,0
+
+
+;==================================================================================
+;ScoreBoard
+;==================================================================================
+num_space byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+byte "                                 " ,0
+num_0 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xx           xx   xx           xx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_1 byte "xxxxxxxxxxxxxxx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xxxxxxxxxxxxxxx              xxxx" ,0
+num_2 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_3 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_4 byte "xxxxxxxxxxxxxxx   xxx        xxxx" ,0
+byte "xx           xx   xxx        xxxx" ,0
+byte "xx           xx   xxx        xxxx" ,0
+byte "xx           xx   xxx        xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xxxxxxxxxxxxxxx              xxxx" ,0
+num_5 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_6 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxx           " ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_7 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xxxxxxxxxxxxxxx              xxxx" ,0
+num_8 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_9 byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxx       xxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx   xxxxxxxxxxxxxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xx           xx              xxxx" ,0
+byte "xxxxxxxxxxxxxxx   xxxxxxxxxxxxxxx" ,0
+num_10 byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xx           xx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+num_11 byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+num_12 byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxx           " ,0
+byte "           xxxx   xxxx           " ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+num_13 byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+num_14 byte "           xxxx   xxx        xxxx" ,0
+byte "           xxxx   xxx        xxxx" ,0
+byte "           xxxx   xxx        xxxx" ,0
+byte "           xxxx   xxx        xxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+num_15 byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxx           " ,0
+byte "           xxxx   xxxx           " ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx              xxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+byte "           xxxx   xxxxxxxxxxxxxxx" ,0
+
+end_game1 byte"   ..........,:.     :...,                                                                        :...`                                 :....`                                  .....:",12
+byte"   :............:    :,.,:                                                                       `,..:`                                 ::..:`                                  .:..::",12 
+byte"   ::.:;;;;;,...,,   ::,::                                                                       :,,::`                                 :::::`                                  .:::::",12  
+byte"   ::;;;;;;;;;;,,:   ::,::                                                                      :,,.::`                                 ::;;:`                                  .:::::",12  
+byte"   :::;:::::;;;:,:.  ::,::                                                                     :,,,:::`                                 :;;;;`                                  .:::::",12  
+byte"   ;;:;:    `;;;:::  :;:;:                                                                   ,:,,;;;;;`                                                                         .;;;;:",12  
+byte"   ;;;;:     :;;;;:  :;:;:     .:::::,    ,:::,      ::::`    .::::,      ,::: ,:::         .,,,;;;;;;`          `:::,    ,:::`    :::: `::::   ,:::` .::::        ,:::::,      .;;;;:",12  
+byte"   ;;;;:     .;;;;:  :;:;;    :,,,,,,,:.  :,,,:     :,,,::   :,,,,,,:`    ;,,,:,,,,:        .;;'';;;;;`          :,,,:    :,,,:   ,,,,:.:,,,:`  :,,,::,,,,,:.     :,,,,,,,:`    `;;;;:",12  
+byte"   ;;;;:     .;;;;:  ;;:;;   :,,,,:,,,,:  :'::;,    :;,;'   :,,,,:,,,:    ;;:;::,:';        .;'';:;;;;`          ,';:;.   ;:,;;   :;,;; :;,:;`  ;;,;:,,,,,,::    :,,,::,,,,:     ;;;;:",12  
+byte"   ;;;;;     ;;;'';  ;;:;;  ,::;''''''::; `'';;;    ;;;';  :::;'''''::;   ;;;:,;''';        .''; ;;;;;`           ;';;;  :;;:;;   ;;;'; ;;;;;`  ;;:;,:'''';::;  ;::'''''''::;    ;;'',",12  
+byte"   ;;;;;   .;:::'':  ;;;;;  ;;;'';;;'';;;  ;';;;   `;;'';  ;::'';;''':;.  ;;,,'''''`        `;.  ;;;;;`           ;';;;  ;;;:;;.  ;;''; ;;;;;`  ;;:,,';;''';;;  ;;;'';;;''';;    ;'''.",12  
+byte"   '';;,,,,,,::'''   ;';';  ;''';   ;';;;  ;'';;`  ;;;''` .;;'';  .'';;;  ;''''; ,;              ;''''`           ;'';;  ;;'';;; ,;;''` ;''''`  ;'''';  .'';;;  ;';';   ;''''    ;'''`",12  
+byte"   ''::,,,,,,,''';   ;';';  ;;;',   ;';';  .'';;;  ;;;';  ;;;''    ;'';;  ;';''`                 ;''''`           .'';;  ;;''';; ;;;''  ;''''`  ;''''`   ;';';  ;'::::;:.;;.     ;''' ",12  
+byte"   ''''''''''''';    ;';';      `;;::;:';   '';;;  ;;'';  ;';';;;;;;''';  '''''                  ;''''`            ''';:.;;''''; ;;'';  ;''''`  ;';''    ;''''  ;'':,,,,:;:      ;''' ",12 
+byte"   '''''''''''';`    ;';';    ;;,,,,:;'''   ;'''; ,'''',  ;';;,,,,,,:;''` '''';                  ;''''`            ;';';;';';''' ;''':  ;''''`  ;';';    ;''''  :''';,,,,::;     ;''' ",12  
+byte"   '''';;;;;;;.      '';''   ;::,;'''''''   ,'''',;''''   ''''';;;;;''''. '''';                  ;''''`            ;''';;''';';':''''`  ;''''`  '''''    ;''''   ;'''''',:::;    ;''' ",12  
+byte"   '''''             '';''  ';:''''''''''    ''''''''''   ''''''''''''''. '''''                  '''''`            `'''''''':''''''''   '''''`  '';''    '''''    ;''''''':;',   '''' ",12  
+byte"   '''''             ''''' `';'+';  '''''    '+'''''++;   ''''''''''''''  '''''                  '''''.             '+''''+'`+'''''+'   '''''.  '''''    '''''      ,''++++'''   ;++' ",12  
+byte"   '''''             ''''' ;''''.   '';''    :++''''++    '''''    ''',   '''''                  '''''.             '+;;:;'' '+;,;'+,   '''''.  '''''    ''''' `'';:,  `;++'''   ,''' ",12  
+byte"   '''''             ''''' ''''':  .'';''     '+':;;+'    '++';'   ':::'  '''''                  '''''.             :++::'+: '+:::+'    '''''.  '''''    ''''' ;'::;'    '''''   '''';",12  
+byte"   '''''             ''''' '''';;'';;;'''     '+'::++'    `++;;:''';;;+'  '''''                  '''''.              ++''++  '++;++'    '''''.  '''''    '''''  '+:;:'''';'++'  .'::''",12  
+byte"   '''''             ''''' .++':::::+++''     '++;'++`     '++::::::'++,  '''''                  '''''.              '++++'  .+++++'    '''''.  '''''    '''''  '++:::::::'+'   .'''''",12  
+byte"   ''+''             ''+''  '+++:::++++''`    `+++++'       '++',::+++'   ''+''                  '''''.              '++++'   '++++,    ''+''.  ''+''    ''+''   '+++::,:+++'   .'''''",12  
+byte"   '+++'             '+++'  `'++++++'+++''     '++++'       .'+++++++'    '+++'                  ''++'.              :++++'   '+++'     ''++'.  '+++'    '+++'   `'++++++++'    .'++''",12  
+byte"  '''''             '''''   `''++'; '''''     '''++:         ''++'';     '''''                  ;''''                ''''.   '''''     ;''''   '''''    '''''     '''++'':      ''''; ",12 
+byte"                                               '';''                                                                                                                                  ",12 
+byte"                                              ';;'''                                                                                                                                  ",12  
+byte"                                           ;''::;'';                                                                                                                                  ",12  
+byte"                                           ':,::'''                                                                                                                                   ",12  
+byte"                                           '';'''''                                                                                                                                   ",12  
+byte"                                           '''''''                                                                                                                                    ",12  
+byte"                                           ''''',                                                                                                                                     ",12,0
+
+
+end_game2 byte"                                           ##`                                                             `######;                              .#+",12                                                    
+byte"                                           ##`                                                            `########:                             .#+",12                                                     
+byte"                                           ##`                                                            ###    +##                             .#+",12                                                     
+byte"                                           ##`                                                            ##`     ##:",12                                                                                    
+byte"                                           ##`                                                           ,##      ;#+",12                                                                                    
+byte"                                           ##`                                                           '#'      .##",12                                                                                    
+byte"                             ## '####.     ##`     ######;    ##`      .#+    :#####      ## '###        `::      .##        .##     ;##     :#; .#+   +#` #####",12                                         
+byte"                             ##;######.    ##`   `########'   ##;      '#,   '#######     ##.####                 ;#+         ##     +##     +#` .#+   +#`####### ",12                                       
+byte"                             ####   +##    ##`   ###    ###   ,##      ##   .##+   ###    ######+                 ##:         ##`    ###     ##  .#+   +#+#;  '##;",12                                      
+byte"                             ###     ##:   ##`   ##      ##.   ##     `##   ##'     ##,   ###                    .##          +#:    ###,    ##  .#+   +##,    +##",12                                       
+byte"                             ##:     ,##   ##`  :#+      +#,   ##.    :#'  `##      ,##   ##+                    ##+          ,#+   .#:#'   ,#;  .#+   +##     `##",12                                      
+byte"                             ##       ##   ##`           +#,   ;#+    ##`  ;#+       ##   ##:                   +##           `##   '# ##   +#.  .#+   +#'      ##",12                                       
+byte"                             ##       ##   ##`          `##,   `##    ##   +#;       ##   ##.                  ;##.            ##   ## ##   ##   .#+   +#;      ##",12                                      
+byte"                             ##       ##`  ##`      :######,    ##`  .#+   ############`  ##`                 ,##;             ##.  ## ##   ##   .#+   +#,      ##",12                                       
+byte"                             ##       ##.  ##`    #########,    ##:  '#,   ############`  ##`                .##+              ;#;  #' ;#, .#'   .#+   +#,      ##",12                                       
+byte"                             ##       ##`  ##`   #####,  +#,    ,##  ##    ##.            ##`               `###               `## ,#. .#+ '#.   .#+   +#,      ##",12                                       
+byte"                             ##       ##   ##`  ;##`     +#,     ##  ##    +#:            ##`               ###                 ## '#   ## ##    .#+   +#,      ##",12                                       
+byte"                             ##       ##   ##`  ##;      +#:     ##`,#'    '#+            ##`              ###                  ## ##   ## ##    .#+   +#,      ##",12                                       
+byte"                             ##.     .##   ##`  ##.      ##:     ;#;+#`    ,##      `##   ##`             '##`                  '#.##   ##`#+    .#+   +#,      ##",12                                       
+byte"                             ##+     ##;   ##`  ##,     :##:      ####      ##:     ###   ##`             ##:                   .#'#'   ;###,    .#+   +#,      ##",12                                       
+byte"                             ###'   +##    ##`  +##    .###;      ###+      +##.   ;##.   ##`            '##`````````            ###.   .###     .#+   +#,      ##",12                                       
+byte"                             #########:    ##`  `###+'###:#'      +##,       ########+    ##`            ############            ###     ###     .#+   +#,      ##",12                                       
+byte"                             ## #####:     ##`   ;###### `##      `##         ######+     ##`            ############            +##     ##+     .#+   +#,      ##",12                                       
+byte"                             ##  ,#;               ;#;             ##           '#;",12                                                                                                                      
+byte"                             ##                                   ,#;",12                                                                                                                                    
+byte"                             ##                                   +#`",12                                                                                                                                    
+byte"                             ##                                   ##",12                                                                                                                                     
+byte"                             ##                               `..##'",12                                                                                                                                     
+byte"                             ##                                ####",12                                                                                                                                      
+byte"                             ##                                ###.",12 ,0 
+
+
+
+
+score1 Dword 0
+score2 Dword 0
+draw_flag DWORD 0
 
 .code
-fastDrawPic PROC USES ecx ebx eax esi
+fastDrawAnime PROC USES ecx ebx eax esi
 	; target draw x
 	mov targetX, 15
 	; target draw y
@@ -11976,20 +12415,15 @@ fastDrawPic PROC USES ecx ebx eax esi
 		inc targetY
 	loop L187
  ret
-fastDrawPic ENDP
-
+fastDrawAnime ENDP
+;==========================================Anime Start
 anime PROC
-
-
-
-
 L1:
-
 mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_001
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12002,7 +12436,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_003
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12015,7 +12449,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_005
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12028,7 +12462,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_007
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12041,7 +12475,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_009
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12054,7 +12488,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_011
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12067,7 +12501,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_013
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12080,7 +12514,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_015
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12093,7 +12527,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_017
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12106,7 +12540,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_019
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12119,7 +12553,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_021
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12132,7 +12566,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_023
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12145,7 +12579,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_025
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12158,7 +12592,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_027
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12171,7 +12605,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_029
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12184,7 +12618,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_031
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12197,7 +12631,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_033
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12210,7 +12644,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_035
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12223,7 +12657,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_037
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12236,7 +12670,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_039
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12249,7 +12683,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_041
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12262,7 +12696,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_043
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12275,7 +12709,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_045
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12288,7 +12722,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_047
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12301,7 +12735,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_049
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12314,7 +12748,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_051
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12327,7 +12761,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_053
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12340,7 +12774,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_055
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12353,7 +12787,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_057
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12366,7 +12800,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_059
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12379,7 +12813,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_061
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12392,7 +12826,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_063
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12405,7 +12839,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_065
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12418,7 +12852,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_067
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12431,7 +12865,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_069
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12444,7 +12878,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_071
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12457,7 +12891,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_073
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12470,7 +12904,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_075
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12483,7 +12917,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_077
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12496,7 +12930,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_079
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12509,7 +12943,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_081
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12522,7 +12956,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_083
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12535,7 +12969,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_085
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12548,7 +12982,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_087
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12561,7 +12995,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_089
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12574,7 +13008,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_091
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12587,7 +13021,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_093
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12600,7 +13034,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_095
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12613,7 +13047,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_097
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12626,7 +13060,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_099
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12639,7 +13073,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_101
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12652,7 +13086,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_103
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12665,7 +13099,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_105
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12678,7 +13112,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_107
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12691,7 +13125,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_109
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 ;call startmenu
 mov eax,45
@@ -12705,7 +13139,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_111
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12718,7 +13152,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_113
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12731,7 +13165,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_115
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12744,7 +13178,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_117
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12757,7 +13191,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_119
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 call startmenu
 mov eax,45
@@ -12771,7 +13205,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_121
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12784,7 +13218,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_123
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12797,7 +13231,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_125
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12810,7 +13244,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_127
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12823,7 +13257,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_129
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12836,7 +13270,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_131
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12849,7 +13283,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_133
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12862,7 +13296,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_135
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12875,7 +13309,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_137
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12888,7 +13322,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_139
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12901,7 +13335,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_141
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12914,7 +13348,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_143
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12927,7 +13361,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_145
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12940,7 +13374,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_147
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12953,7 +13387,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_149
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12966,7 +13400,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_151
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12979,7 +13413,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_153
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -12992,7 +13426,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_155
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13005,7 +13439,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_157
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13018,7 +13452,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_159
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13031,7 +13465,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_161
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13044,7 +13478,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_163
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13057,7 +13491,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_165
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13070,7 +13504,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_167
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13083,7 +13517,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_169
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13096,7 +13530,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_171
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13109,7 +13543,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_173
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13122,7 +13556,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_175
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13135,7 +13569,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_177
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13148,7 +13582,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_179
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13161,7 +13595,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_181
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13174,7 +13608,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_183
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13187,7 +13621,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_185
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13200,7 +13634,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_187
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13213,7 +13647,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_189
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13226,7 +13660,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_191
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13239,7 +13673,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_193
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13252,7 +13686,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_195
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13265,7 +13699,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_197
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13278,7 +13712,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_199
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13291,7 +13725,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_201
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13304,7 +13738,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_203
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13317,7 +13751,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_205
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13330,7 +13764,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_207
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13343,7 +13777,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_209
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13356,7 +13790,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_211
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13369,7 +13803,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_213
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13382,7 +13816,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_215
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13395,7 +13829,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_217
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13408,7 +13842,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_219
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13421,7 +13855,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_221
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13434,7 +13868,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_223
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13447,7 +13881,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_225
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13460,7 +13894,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_227
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13473,7 +13907,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_229
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13486,7 +13920,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_231
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13499,7 +13933,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_233
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13512,7 +13946,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_235
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13525,7 +13959,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_237
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13538,7 +13972,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_239
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13551,7 +13985,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_241
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13564,7 +13998,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_243
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13577,7 +14011,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_245
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13590,7 +14024,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_247
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13603,7 +14037,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_249
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13616,7 +14050,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_251
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13629,7 +14063,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_253
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13642,7 +14076,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_255
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13655,7 +14089,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_257
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13668,7 +14102,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_259
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13681,7 +14115,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_261
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13694,7 +14128,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_263
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13707,7 +14141,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_265
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13720,7 +14154,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_267
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13733,7 +14167,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_269
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13746,7 +14180,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_271
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13759,7 +14193,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_273
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13772,7 +14206,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_275
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13785,7 +14219,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_277
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13798,7 +14232,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_279
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13811,7 +14245,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_281
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13824,7 +14258,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_283
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13837,7 +14271,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_285
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13850,7 +14284,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_287
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13863,7 +14297,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_289
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13876,7 +14310,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_291
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13889,7 +14323,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_293
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13902,7 +14336,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_295
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13915,7 +14349,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_297
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13928,7 +14362,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_299
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13941,7 +14375,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_301
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13954,7 +14388,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_303
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13967,7 +14401,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_305
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13980,7 +14414,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_307
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -13993,7 +14427,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_309
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14006,7 +14440,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_311
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14019,7 +14453,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_313
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14032,7 +14466,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_315
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14045,7 +14479,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_317
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14058,7 +14492,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_319
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14071,7 +14505,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_321
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14084,7 +14518,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_323
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14097,7 +14531,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_325
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14110,7 +14544,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_327
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14123,7 +14557,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_329
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14136,7 +14570,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_331
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14149,7 +14583,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_333
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14162,7 +14596,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_335
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14175,7 +14609,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_337
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14188,7 +14622,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_339
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14201,7 +14635,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_341
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14214,7 +14648,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_343
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14227,7 +14661,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_345
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14240,7 +14674,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_347
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14253,7 +14687,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_349
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14266,7 +14700,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_351
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14279,7 +14713,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_353
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14292,7 +14726,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_355
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14305,7 +14739,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_357
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14318,7 +14752,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_359
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14331,7 +14765,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_361
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14344,7 +14778,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_363
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14357,7 +14791,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_365
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14370,7 +14804,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_367
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14383,7 +14817,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_369
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14396,7 +14830,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_371
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14409,7 +14843,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_373
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14422,7 +14856,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_375
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14435,7 +14869,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_377
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14448,7 +14882,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_379
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14461,7 +14895,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_381
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14474,7 +14908,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_383
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14487,7 +14921,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_385
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14500,7 +14934,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_387
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14513,7 +14947,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_389
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14526,7 +14960,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_391
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14539,7 +14973,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_393
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14552,7 +14986,7 @@ mov dl,0
 mov dh,0
 call gotoxy
 lea esi, frame_395
-call fastDrawPic
+call fastDrawAnime
 call startmenu
 mov eax,45
 call delay
@@ -14561,38 +14995,13 @@ mov dh,0
 call gotoxy
 lea edx, space 
 call writeString
-;call startmenu
-
-
 jmp L1
 	exit
 anime ENDP
 
-drawPic PROC USES esi eax edx ebx
-	mov eax, 0
-	mov ebx, 0
-	call gotoxy
-	L87:
-		mov ebx, 0
-		mov ebx, [esi + eax]
-		.IF bl == 12
-			inc dh
-			call gotoxy
-		.ELSE
-			.IF bl != 0h
-				push eax
-				mov al, [esi + eax]
-				call writeChar
-				pop eax
-			.ELSE
-				ret
-			.ENDIF
-		.ENDIF
-		inc eax
-	loop L87
-	ret
-drawPic ENDP
+;anime end
 
+; menu start
 tittle PROC USES esi eax edx
 	mov esi,OFFSET tttle	
 	mov dl,180
@@ -14628,7 +15037,9 @@ drawsel ENDP
 
 
 startmenu PROC USES esi eax edx
-	
+	.IF score1 == MAX_SCORE || score2 == MAX_SCORE
+		call endScreen
+	.ENDIF
 
 	;call anime
 	mov ah, 0
@@ -14643,7 +15054,9 @@ startmenu PROC USES esi eax edx
 		mov dh,71
 		call drawPic
 
+		mov userChoice, 1
 	.ENDIF
+	mov ah, 0
 	INVOKE GetKeyState, VK_RIGHT  ;ah == 1
     .IF ah
 		mov esi,OFFSET spaceBlock
@@ -14654,21 +15067,898 @@ startmenu PROC USES esi eax edx
 		mov dl,220
 		mov dh,71
 		call drawPic
-
+		mov userChoice, 2
 	.ENDIF
-
+	mov ah, 0
+	INVOKE GetKeyState, VK_ENTER  ;ah == 1
+    .IF ah
+		.IF userChoice == 2
+			INVOKE ExitProcess, 0
+		.ELSE
+			call clrscr
+			invoke PlaySound, OFFSET gameMusic, 0, 00020009h
+			call gameScreen
+		.ENDIF
+	.ENDIF
 	ret
 
 startmenu ENDP 
 
 
-main PROC
-call tittle
-call list1
-call list2
-call drawsel
-invoke PlaySound, OFFSET file, 0, 00020009h
-call anime
-main endp
+; menu end
+fastDrawPic PROC USES ecx ebx eax edx esi
+    movzx ecx, bh
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+fastDrawPic ENDP
 
+drawPic PROC USES esi eax edx ebx
+	mov eax, 0
+	mov ebx, 0
+	call gotoxy
+	L87:
+		mov ebx, 0
+		mov ebx, [esi + eax]
+		.IF bl == 12
+			inc dh
+			call gotoxy
+		.ELSE
+			.IF bl != 0h
+				push eax
+				mov al, [esi + eax]
+				call writeChar
+				pop eax
+			.ELSE
+				ret
+			.ENDIF
+		.ENDIF
+		inc eax
+	loop L87
+	ret
+drawPic ENDP
+; =======================================================Scoreboard
+score PROC USES edx esi eax ecx ebx
+	.IF score1 == MAX_SCORE || score2 == MAX_SCORE
+		call endScreen
+	.ENDIF
+	;mov esi,OFFSET num_space    ;先把要畫數字的地方清掉
+	;mov dl,90
+	;mov dh,0
+	;call drawPic
+	mov targetX, 90
+	mov targetY, 0
+	mov bl, 34
+	mov bh, 9
+	mov esi, OFFSET num_space
+	call fastDrawPic
+	;mov esi,OFFSET num_space
+	;mov dl,150
+	;mov dh,0
+	;call drawPic
+	mov targetX, 150
+	mov targetY, 0
+	mov bl, 34
+	mov bh, 9
+	mov esi, OFFSET num_space
+	call fastDrawPic
+	mov draw_flag,0
+
+
+	mov eax,score1
+	;mov dl,90
+	;mov dh,0
+	mov targetX, 90
+	mov targetY, 0
+	mov bl, 34
+	mov bh, 9
+	mov draw_flag,1
+	jmp cmp_score
+	
+
+	cmp_score:
+	cmp eax, 0
+	je draw_zero
+	cmp eax ,1
+	je draw_one
+	cmp eax ,2
+	je draw_two
+	cmp eax ,3
+	je draw_three
+	cmp eax ,4
+	je draw_four
+	cmp eax ,5
+	je draw_five
+	cmp eax ,6
+	je draw_six
+	cmp eax ,7
+	je draw_seven
+	cmp eax ,8
+	je draw_eight
+	cmp eax ,9
+	je draw_nine
+	cmp eax ,10
+	je draw_ten
+	cmp eax ,11
+	je draw_oneone
+	cmp eax ,12
+	je draw_onetwo
+	cmp eax ,13
+	je draw_onethree
+	cmp eax ,14
+	je draw_onefour
+	cmp eax ,15
+	je draw_onefive
+
+
+	scr2:
+	mov draw_flag,0
+	mov eax,score2
+	;mov dl,150
+	;mov dh,0
+	mov targetX, 150
+	mov targetY, 0
+	mov bl, 34
+	mov bh, 9
+	jmp cmp_score
+
+
+
+	draw_zero:
+		mov esi,OFFSET num_0
+		jmp drawfinal
+	draw_one:
+		mov esi,OFFSET num_1
+		jmp drawfinal
+	draw_two:
+		mov esi,OFFSET num_2
+		jmp drawfinal
+	draw_three:
+		mov esi,OFFSET num_3
+		jmp drawfinal
+	draw_four:
+		mov esi,OFFSET num_4
+		jmp drawfinal
+	draw_five:
+		mov esi,OFFSET num_5
+		jmp drawfinal
+	draw_six:
+		mov esi,OFFSET num_6
+		jmp drawfinal
+	draw_seven:
+		mov esi,OFFSET num_7
+		jmp drawfinal
+	draw_eight:
+		mov esi,OFFSET num_8
+		jmp drawfinal
+	draw_nine:
+		mov esi,OFFSET num_9
+		jmp drawfinal
+	draw_ten:
+		mov esi,OFFSET num_10
+		jmp drawfinal
+	draw_oneone:
+		mov esi,OFFSET num_11
+		jmp drawfinal
+	draw_onetwo:
+		mov esi,OFFSET num_12
+		jmp drawfinal
+	draw_onethree:
+		mov esi,OFFSET num_13
+		jmp drawfinal
+	draw_onefour:
+		mov esi,OFFSET num_14
+		jmp drawfinal
+	draw_onefive:
+		mov esi,OFFSET num_15
+		jmp drawfinal
+
+	drawfinal:
+		call fastDrawPic
+		;call drawPic
+		.IF draw_flag
+			jmp scr2
+		.ENDIF
+
+	ret
+score ENDP
+
+
+
+
+; ========================================================Scoreboard
+
+DrawPlayer1 PROC
+	mov al,player1_X
+	mov targetX,al
+	mov al,player1_Y
+	mov targetY,al
+    mov bl, 71
+    ;col
+    mov bh, 40
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET man
+    
+    
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+DrawPlayer1 ENDP
+
+DrawPlayer2 PROC
+	mov al,player2_X
+	mov targetX,al
+	mov al,player2_Y
+	mov targetY,al
+	
+    mov bl, 71
+    ;col
+    mov bh, 40
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET man2
+    
+    
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+DrawPlayer2 ENDP
+
+Player1Clear PROC
+	mov al,player1_oldX
+	mov targetX,al
+	mov al,player1_oldY
+	mov targetY,al
+    mov bl, 71
+    ;col
+    mov bh, 40
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET manClear
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+Player1Clear ENDP
+
+Player2Clear PROC
+	mov al,player2_oldX
+	mov targetX,al
+	mov al,player2_oldY
+	mov targetY,al
+    mov bl, 71
+    ;col
+    mov bh, 40
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET manClear
+    L2:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L2
+ ret
+Player2Clear ENDP
+
+DrawNet PROC
+	mov al,127
+	mov targetX,al
+	mov al,61
+	mov targetY,al
+	
+    mov bl, 16
+    ;col
+    mov bh, 35
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET net
+    
+    
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        ;mov edx, OFFSET newLine
+        ;call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+DrawNet ENDP
+
+DrawBall PROC
+	invoke GetStdHandle,STD_OUTPUT_HANDLE 
+	mov chand,eax 
+	invoke GetConsoleCursorInfo,chand,addr cci 
+	;inkey "Press any key to hide cursor" 
+	mov cci.bVisible,FALSE 
+	invoke SetConsoleCursorInfo,chand,addr cci
+	mov al,ball_X
+	mov targetX,al
+	mov al,ball_Y
+	mov targetY,al
+	
+    mov bl, 21
+    ;col
+    mov bh, 9
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET ball
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+DrawBall ENDP
+
+Ball_Clear PROC
+	mov al,ball_X
+	mov targetX,al
+	mov al,ball_Y
+	mov targetY,al
+	
+    mov bl, 21
+    ;col
+    mov bh, 9
+    ;row
+    movzx ecx, bh
+    mov esi, OFFSET ballClear
+    L1:
+        mov dl, targetX
+        mov dh, targetY
+        call gotoxy
+        mov edx,esi    
+        call writeString
+        movzx eax, bl
+        add esi, eax
+        inc targetY
+    loop L1
+ ret
+Ball_Clear ENDP
+
+gameScreen PROC
+	call DrawNet
+gameLooop:   
+	call DrawNet
+	call Player1Clear
+	call DrawPlayer1
+	mov player1_move_flag,0
+	mov player2_move_flag,0
+	 mov ah, 0
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									存取舊位置									;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+	mov al,player1_X
+    mov player1_oldx,al
+	mov al,player2_X
+    mov player2_oldx,al
+	mov al,player1_Y
+    mov player1_oldy,al
+	mov al,player2_Y
+    mov player2_oldy,al
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									角色移動處理(重力)							;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;第一個腳色
+	.IF player1_Y < maxRow ;模擬重力
+	mov player1_move_flag,1
+	mov ch,player1_Y
+	add ch,player1_V
+	mov player1_Y,ch
+
+	mov ch,player1_V
+	add ch,acceleration
+	mov player1_V,ch
+	.IF player1_Y>maxRow
+	mov player1_Y,maxRow
+	mov player1_V,0
+	.ENDIF
+	
+	.ENDIF
+
+	.IF player2_Y < maxRow ;模擬重力
+	mov player2_move_flag,1
+	mov ch,player2_Y
+	add ch,player2_V
+	mov player2_Y,ch
+	mov ch,player2_V
+	add ch,acceleration
+	mov player2_V,ch
+	.IF player2_Y>maxRow
+	mov player2_Y,maxRow
+	mov player2_V,0
+	.ENDIF
+	.ENDIF
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									角色移動處理(按鍵)							;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	
+	INVOKE GetKeyState, VK_W ;當按上後 判斷是不是已經在底部
+    .IF ah && player1_Y == maxRow;當確定在底部
+        mov player1_V,-8;
+		mov player1_Y,maxRow-1
+	.ENDIF     
+
+	INVOKE GetKeyState, VK_A
+    .IF ah && player1_X > Player1_min_X 
+		mov player1_move_flag,1
+        sub player1_X,2
+
+	.ENDIF  
+
+	INVOKE GetKeyState, VK_D
+    .IF ah && player1_X < Player1_max_X
+		mov player1_move_flag,1
+        add player1_X,2
+
+	.ENDIF     
+
+	.IF player1_move_flag==1
+		call Player1Clear
+		call DrawPlayer1
+	.ENDIF
+    ;第二個腳色
+
+	INVOKE GetKeyState, VK_UP
+    .IF ah && player2_Y == maxRow;當確定在底部
+        mov player2_V,-8;
+		mov player2_Y,maxRow-1
+	.ENDIF     
+
+	INVOKE GetKeyState, VK_LEFT
+    .IF ah && player2_X > Player2_min_X 
+		mov player2_move_flag,1
+        sub player2_X,2
+	.ENDIF  
+
+
+	INVOKE GetKeyState, VK_RIGHT
+    .IF ah && player2_X < Player2_max_X 
+		mov player2_move_flag,1
+        add player2_X,2
+	.ENDIF  
+
+	.IF player2_move_flag==1
+		call Player2Clear
+		call DrawPlayer2
+	.ENDIF
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									球移動處理									;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	.IF ball_X>=ball_min_X&&ball_X<=ball_max_X ;球撞到左右的牆反彈
+		mov al,ball_X
+		add al,ball_xV
+		mov ball_X,al
+	.ELSEIF ball_X>ball_max_X
+		mov ball_X,244
+		neg ball_xV
+	.ELSEIF ball_X<ball_min_X
+		add ball_X,3
+		neg ball_xV
+	.ENDIF
+
+	.IF ball_Y>=ball_min_Y&&ball_Y<=ball_max_Y;球撞到上下的牆反彈
+		mov al,ball_Y
+		add al,ball_yV
+		mov ball_Y,al
+	;===========================================================
+	; 每分重置
+	;===========================================================
+	.ELSEIF ball_Y>ball_max_Y
+		.IF ball_X<127
+		    inc score2
+			mov ball_X, 127
+			mov ball_Y, 10
+			mov ball_xV, 3
+			mov eax, 1000
+			call delay
+		.ELSEIF ball_X>143
+			inc score1
+			mov ball_X, 127
+			mov ball_Y, 10
+			mov ball_xV, -3
+			mov eax, 1000
+			call delay
+		.ENDIF
+		;sub ball_Y,3
+		;neg ball_yV
+	.ELSEIF ball_Y<ball_min_Y
+		add ball_Y,3
+		neg ball_yV
+	.ENDIF
+
+	;碰撞網子的左邊
+	.IF ball_X>=106&&ball_X<114&&ball_Y>56 ;ball_X+21>=127&&ball_X+21<143&&ball_Y+9>41
+		sub ball_X,2
+		neg ball_xV
+	.ENDIF
+	;碰撞網子的右邊
+	.IF ball_X>=135&&ball_X<143&&ball_Y>56
+		add ball_X,2
+		neg ball_xV
+	.ENDIF
+	;碰撞網子上面
+	.IF ball_X>=106&&ball_X<143&&ball_Y>52&&ball_Y<=56
+		neg ball_yV
+		mov ball_y,52
+	.ENDIF
+
+	;Player1處理
+	;左半邊 後背
+	mov al,player1_X
+	mov ah,player1_X
+	add ah,14
+	.IF ball_X>al&&ball_X<ah ;ball_X>player1_X&&ball_X+21<player1_X+35
+		;下半身
+		mov al,player1_Y
+		add al,11
+		mov ah,player1_Y
+		add ah,30
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+9>player1_Y+20&&ball_Y+5<player1_Y+35
+			mov ball_xv,-3
+			mov ball_yv,-3
+
+		.ENDIF
+		;最底下
+		mov ah,player1_Y
+		add ah,30
+		mov al,player1_Y
+		add al,40
+		.IF ball_Y>ah&&ball_Y<=al;ball_Y+5>player1_Y+35&&ball_Y<player1_Y+40
+			neg ball_yv
+			mov al,player1_y
+			add al,41
+			mov ball_y,al
+		.ENDIF
+		
+	.ENDIF
+	;右半邊 面對網子
+	mov al,player1_X
+	add al,14
+	mov ah,player1_X
+	add ah,70
+	.IF ball_X>al&&ball_X<=ah ;ball_X+21>player1_X+35&&ball_X<player1_X+70
+		;頭頂區
+		mov al,player1_Y
+		sub al,9
+		mov ah,player1_Y
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+9>player1_Y&&ball_Y+5<player1_Y+5
+			neg ball_yv
+			mov al,player1_y
+			sub al,9
+			mov ball_y,al
+			push eax
+				mov ah,0
+				INVOKE GetKeyState, VK_SPACEBAR
+				.IF ah
+					add ball_xv, 5
+					;sub ball_yv, 2
+				.ENDIF
+			pop eax
+		.ENDIF
+		;上半身
+		mov al,player1_Y
+		add al,15
+		mov ah,player1_Y
+		.IF ball_Y>ah&&ball_Y<=al;ball_Y+5>player1_Y+5&&ball_Y+5<player1_Y+20
+			neg ball_xv
+			mov al,player1_X
+			add al,43
+			.IF ball_X>al;ball_X+5>player1_X+53
+				push eax
+				mov ah,0
+				INVOKE GetKeyState, VK_SPACEBAR
+				.IF ah
+					add ball_xv, 5
+					;sub ball_yv, 2
+				.ENDIF
+				pop eax
+				mov al,player1_X
+				add al,71
+				mov ball_x,al
+			.ELSEIF
+				mov al,player1_X
+				add al,14
+				mov ball_x,al					
+			.ENDIF
+		
+
+		.ENDIF
+		;下半身
+		mov al,player1_Y
+		add al,15
+		mov ah,player1_Y
+		add ah,30
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+5>player1_Y+20&&ball_Y+5<player1_Y+35
+			mov ball_xv,3
+			mov ball_yv,3
+			mov al,player1_X
+			add al,71
+			mov ball_x,al
+		.ENDIF
+		;最底下
+		mov ah,player1_Y
+		add ah,30
+		mov al,player1_Y
+		add al,40
+		.IF ball_Y>ah&&ball_Y<al;ball_Y+5>player1_Y+35&&ball_Y<player1_Y+40
+			neg ball_yv
+			mov al,player1_y
+			add al,41
+			mov ball_y,al
+		.ENDIF
+	.ENDIF
+
+	;Player2處理
+	;右半邊 後背
+	mov al,player2_X
+	add al,35
+	mov ah,player2_X
+	add ah,49
+	.IF ball_X>al&&ball_X<ah ;ball_X>player2_X+35&&ball_X+21<player2_X+70
+		;下半身
+		mov al,player2_Y
+		add al,11
+		mov ah,player2_Y
+		add ah,30
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+9>player2_Y+20&&ball_Y+5<player2_Y+35
+			mov ball_xv,3
+			mov ball_yv,-3
+
+		.ENDIF
+		;最底下
+		mov ah,player2_Y
+		add ah,30
+		mov al,player2_Y
+		add al,40
+		.IF ball_Y>ah&&ball_Y<=al;ball_Y+5>player2_Y+35&&ball_Y<player2_Y+40
+			neg ball_yv
+			mov al,player2_y
+			add al,41
+			mov ball_y,al
+		.ENDIF
+		
+	.ENDIF
+	;左半邊 面對網子
+	mov al,player2_X
+	sub al,21
+	mov ah,player2_X
+	add ah,35
+	.IF ball_X>al&&ball_X<=ah ;ball_X+21>player2_X&&ball_X<player2_X+35
+		;頭頂區
+		mov al,player2_Y
+		sub al,9
+		mov ah,player2_Y
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+9>player2_Y&&ball_Y+5<player2_Y+5
+			neg ball_yv
+			mov al,player2_y
+			sub al,9
+			mov ball_y,al
+			push eax
+				mov ah,0
+				INVOKE GetKeyState, VK_ENTER
+				.IF ah
+					sub ball_xv, 5
+					;sub ball_yv, 2
+				.ENDIF
+			pop eax
+		.ENDIF
+		;上半身
+		mov al,player2_Y
+		add al,15
+		mov ah,player2_Y
+		.IF ball_Y>ah&&ball_Y<=al;ball_Y+5>player2_Y+5&&ball_Y+5<player2_Y+20
+			neg ball_xv
+			mov al,player2_X
+			add al,7
+			.IF ball_X>al;ball_X+10>player2_X+17 往右彈
+				mov al,player2_X
+				add al,35
+				mov ball_x,al	
+				push eax
+				mov ah,0
+				INVOKE GetKeyState, VK_SPACEBAR
+				.IF ah
+					sub ball_xv, 5
+					;sub ball_yv, 2
+				.ENDIF
+				pop eax
+			.ELSEIF ;往左彈
+				mov al,player2_X
+				sub al,21
+				mov ball_x,al					
+			.ENDIF
+		.ENDIF
+		;下半身
+		mov al,player2_Y
+		add al,15
+		mov ah,player2_Y
+		add ah,30
+		.IF ball_Y>al&&ball_Y<=ah;ball_Y+5>player2_Y+20&&ball_Y+5<player2_Y+35
+			mov ball_xv,-3
+			mov ball_yv,3
+			mov al,player2_X
+			sub al,21
+			mov ball_x,al
+		.ENDIF
+		;最底下
+		mov ah,player2_Y
+		add ah,30
+		mov al,player2_Y
+		add al,40
+		.IF ball_Y>ah&&ball_Y<al;ball_Y+5>player2_Y+35&&ball_Y<player2_Y+40
+			neg ball_yv
+			mov al,player2_y
+			add al,41
+			mov ball_y,al
+		.ENDIF
+	.ENDIF
+	;Player2處理結束
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									繪畫角色	 									;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	call drawball
+
+	invoke Sleep,33
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;																				;
+	;									清除角色	 									;
+	;																				;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+	call ball_Clear
+	
+	call score
+    jmp gameLooop
+	ret
+gameScreen ENDP
+
+; endScreen
+
+; =====================
+
+endScreen PROC USES eax esi edx
+	call clrscr
+	endLoop:
+	mov ah,0
+		INVOKE GetKeyState, VK_ENTER
+		.IF ah
+			call reset
+			call tittle
+			call list1
+			call list2
+			call drawsel
+			invoke PlaySound, OFFSET startMusic, 0, 00020009h
+			call anime
+		.ENDIF
+		mov eax ,score1
+		cmp eax,MAX_SCORE
+		je player1w
+		mov eax,score2
+		cmp eax,MAX_SCORE
+		je player2w
+		player1w:
+			mov esi,OFFSET end_game1
+			jmp drawend
+		player2w:
+			mov esi,OFFSET end_game2
+			jmp drawend
+		drawend:
+			mov dl, 100
+			mov dh, 35
+			call drawPic
+	
+	loop endLoop
+	ret
+endScreen ENDP
+
+reset PROC
+	call clrscr
+	mov player1_oldX, 0
+	mov player1_oldY , 0
+	mov player2_oldX , 0
+	mov player2_oldY , 0
+	mov player1_X , 60
+	mov player1_Y , 1
+	mov player1_V , 1
+	mov player2_X , 160
+	mov player2_Y , 1
+	mov player2_V , 1
+	mov acceleration , 1 
+	mov ball_X , 180
+	mov ball_Y , 60
+	mov ball_xV , 3
+	mov ball_yV , -3
+	mov targetX , 0
+	mov targetY , 0
+	mov player1_move_flag , 0
+	mov player2_move_flag , 0
+	mov player1Score , 0
+	mov player2Score , 0
+	mov userChoice , 1
+	mov score1 , 0
+	mov score2 , 0
+	mov draw_flag , 0
+reset ENDP
+
+main PROC
+	
+	call tittle
+	call list1
+	call list2
+	call drawsel
+	invoke PlaySound, OFFSET startMusic, 0, 00020009h
+	call anime
+	;call DrawPlayer1
+	call endScreen
+	
+main ENDP
 END main
